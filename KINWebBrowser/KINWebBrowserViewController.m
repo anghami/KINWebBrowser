@@ -37,7 +37,7 @@
 
 static void *KINWebBrowserContext = &KINWebBrowserContext;
 
-@interface KINWebBrowserViewController () <UIAlertViewDelegate>
+@interface KINWebBrowserViewController ()
 
 @property (nonatomic, assign) BOOL previousNavigationControllerToolbarHidden, previousNavigationControllerNavigationBarHidden;
 @property (nonatomic, strong) UIBarButtonItem *backButton, *forwardButton, *refreshButton, *stopButton, *fixedSeparator, *flexibleSeparator;
@@ -46,7 +46,7 @@ static void *KINWebBrowserContext = &KINWebBrowserContext;
 @property (nonatomic, assign) BOOL uiWebViewIsLoading;
 @property (nonatomic, strong) NSURL *uiWebViewCurrentURL;
 @property (nonatomic, strong) NSURL *URLToLaunchWithPermission;
-@property (nonatomic, strong) UIAlertView *externalAppPermissionAlertView;
+@property (nonatomic, strong) UIAlertController *externalAppPermissionAlertView;
 
 @end
 
@@ -107,8 +107,17 @@ static void *KINWebBrowserContext = &KINWebBrowserContext;
         self.showsURLInNavigationBar = NO;
         self.showsPageTitleInNavigationBar = YES;
         
-        self.externalAppPermissionAlertView = [[UIAlertView alloc] initWithTitle:@"Leave this app?" message:@"This web page is trying to open an outside app. Are you sure you want to open it?" delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Open App", nil];
         
+        
+        self.externalAppPermissionAlertView = [UIAlertController alertControllerWithTitle:@"Leave this app?" message:@"This web page is trying to open an outside app. Are you sure you want to open it?" preferredStyle:UIAlertControllerStyleAlert];
+        [self.externalAppPermissionAlertView setTitle:@"Leave this app?"];
+        [self.externalAppPermissionAlertView addAction:[UIAlertAction actionWithTitle:@"Open App" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [[UIApplication sharedApplication] openURL:self.URLToLaunchWithPermission];
+            self.URLToLaunchWithPermission = nil;
+        }]];
+        [self.externalAppPermissionAlertView addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+            self.URLToLaunchWithPermission = nil;
+        }]];
     }
     return self;
 }
@@ -472,14 +481,11 @@ static void *KINWebBrowserContext = &KINWebBrowserContext;
 
 - (void)actionButtonPressed:(id)sender {
     NSURL *URLForActivityItem;
-    NSString *URLTitle;
     if(self.wkWebView) {
         URLForActivityItem = self.wkWebView.URL;
-        URLTitle = self.wkWebView.title;
     }
     else if(self.uiWebView) {
         URLForActivityItem = self.uiWebView.request.URL;
-        URLTitle = [self.uiWebView stringByEvaluatingJavaScriptFromString:@"document.title"];
     }
     if (URLForActivityItem) {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -578,21 +584,7 @@ static void *KINWebBrowserContext = &KINWebBrowserContext;
 
 - (void)launchExternalAppWithURL:(NSURL *)URL {
     self.URLToLaunchWithPermission = URL;
-    if (![self.externalAppPermissionAlertView isVisible]) {
-        [self.externalAppPermissionAlertView show];
-    }
-
-}
-
-#pragma mark - UIAlertViewDelegate
-
-- (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
-    if(alertView == self.externalAppPermissionAlertView) {
-        if(buttonIndex != alertView.cancelButtonIndex) {
-            [[UIApplication sharedApplication] openURL:self.URLToLaunchWithPermission];
-        }
-        self.URLToLaunchWithPermission = nil;
-    }
+    [self presentViewController:self.externalAppPermissionAlertView animated:true completion:nil];
 }
 
 #pragma mark - Dismiss
